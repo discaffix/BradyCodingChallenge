@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 
@@ -6,9 +7,10 @@ namespace BradyCodingChallenge.Model
 {
     public class Generator
     {
-        public Generator()
-        {
-        }
+        /// <summary>
+        /// Empty constructor
+        /// </summary>
+        public Generator() { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Generator"/> class.
@@ -19,20 +21,8 @@ namespace BradyCodingChallenge.Model
             Name = name;
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Generator"/> class.
-        /// </summary>
-        /// <param name="name">The name.</param>
-        /// <param name="emissionsRating">The emissions rating.</param>
-        public Generator(string name, double emissionsRating)
-        {
-            Name = name;
-            EmissionsRating = emissionsRating;
-        }
-
         public string Name { get; set; }
-
-        public double EmissionsRating { get; set; }
+        
 
         /// <summary>
         /// The daily report of the Power Generation
@@ -40,15 +30,7 @@ namespace BradyCodingChallenge.Model
         /// <value>
         /// The days.
         /// </value>
-        public Collection<Day> Days { get; } = new Collection<Day>();
+        public ICollection<Day> Days { get; set; } = new List<Day>();
 
-        /// <summary>
-        /// Adds 
-        /// </summary>
-        /// <param name="day">The day.</param>
-        public void AddDay(Day day)
-        {
-            Days.Add(day);
-        }
     }
 }

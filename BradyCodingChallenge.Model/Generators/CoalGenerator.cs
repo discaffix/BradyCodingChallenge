@@ -1,9 +1,13 @@
 ﻿namespace BradyCodingChallenge.Model.Generators
 {
-    public class CoalGenerator : Generator
+    public class CoalGenerator : ThermalGenerator
     {
 
+        /// <summary>
+        /// 
+        /// </summary>
         CoalGenerator() { }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="CoalGenerator"/> class.
         /// </summary>

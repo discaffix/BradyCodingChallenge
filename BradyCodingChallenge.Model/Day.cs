@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,11 +17,18 @@ namespace BradyCodingChallenge.Model
             Energy = energy;
             Price = price;
         }
-
+        [DataType(DataType.Date)]
+        [DisplayFormat]
         public DateTime Date { get; set; }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public double Energy { get; set; }
 
+        /// <summary>
+        /// 
+        /// </summary>
         public double Price { get; set; }
 
 
