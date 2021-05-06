@@ -13,7 +13,7 @@ namespace BradyCodingChallenge.ConsoleApp
         private ICollection<Day> _listOfDays;
         
         /// <summary>
-        /// 
+        /// Sets the value of a property with a generic type
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="node">The </param>
@@ -29,7 +29,7 @@ namespace BradyCodingChallenge.ConsoleApp
         /// <summary>
         /// 
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="T">T</typeparam>
         /// <param name="node"></param>
         /// <returns></returns>
         internal T GeneratorNodeToList<T>(XmlNode node) where T : class
@@ -43,10 +43,11 @@ namespace BradyCodingChallenge.ConsoleApp
                 {
                     _listOfDays = new List<Day>();
 
-                    // loops through the days 
                     foreach (XmlNode day in child.ChildNodes)
                     {
                         var dayObject = new Day();
+                        
+                        // TODO: Might be a better way to do this
                         foreach (XmlNode prop in day.ChildNodes)
                         {
                             switch (prop.Name)
@@ -72,6 +73,22 @@ namespace BradyCodingChallenge.ConsoleApp
                     SetValue(child, obj);
             }
 
+            return obj;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public T FactorNodeToObject<T>(XmlNode node) where T : class
+        {
+            var obj = (T)Activator.CreateInstance(typeof(T));
+
+            foreach (XmlNode child in node.ChildNodes)
+                SetValue(child, obj);
+            
             return obj;
         }
     }

@@ -1,21 +1,10 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Diagnostics.Tracing;
 using System.IO;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using System.Xml;
-using System.Xml.Serialization;
-using BradyCodingChallenge.Model;
 using BradyCodingChallenge.Model.Generators;
-using Microsoft.VisualBasic;
-using Microsoft.VisualBasic.CompilerServices;
-using static System.Double;
+using BradyCodingChallenge.Model.NewFolder;
 
 namespace BradyCodingChallenge.ConsoleApp
 {
@@ -24,10 +13,20 @@ namespace BradyCodingChallenge.ConsoleApp
         public static void Main()
         {
             var reader = new XmlReader();
-
+            
             var projectDirectory = Path.GetFullPath(@"..\..\..\");
-            var pathToReport = @$"{projectDirectory}\ExtraFiles\GenerationReport.xml";
+
+            var referenceDataFileName = "ReferenceData";
+            var generationReportFileName = "GenerationReport";
+
+            var pathToReport = @$"{projectDirectory}\ExtraFiles\{generationReportFileName}.xml";
+            var pathToReferenceData = $@"{projectDirectory}\ExtraFiles\{referenceDataFileName}.xml";
+            
             var generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
+            var referenceDataXPath = "//ValueFactor|//EmissionFactor";
+            
+            var emissionFactor = new EmissionFactor();
+            var valueFactor = new ValueFactor();
 
             ICollection<WindGenerator> windGenerators = new List<WindGenerator>();
             ICollection<GasGenerator> gasGenerators = new List<GasGenerator>();
@@ -36,10 +35,27 @@ namespace BradyCodingChallenge.ConsoleApp
             var doc = new XmlDocument();
             doc.Load(pathToReport);
 
-            var generators = doc.SelectNodes(generatorXPath);
-            Debug.Assert(generators != null, nameof(generators) + " != null");
+            var referenceDataDoc = new XmlDocument();
+            referenceDataDoc.Load(pathToReferenceData);
 
-            
+            var generators = doc.SelectNodes(generatorXPath);
+            var factors = referenceDataDoc.SelectNodes(referenceDataXPath);
+
+            Debug.Assert(factors != null, nameof(factors) + " != null");
+            foreach (XmlNode node in factors)
+            {
+                switch (node.Name)
+                {
+                    case "EmissionFactor":
+                        emissionFactor = reader.FactorNodeToObject<EmissionFactor>(node);
+                        break;
+                    case "ValueFactor":
+                        valueFactor = reader.FactorNodeToObject<ValueFactor>(node);
+                        break;
+                }
+            }
+
+            Debug.Assert(generators != null, nameof(generators) + " != null");
             foreach (XmlNode node in generators)
             {
                 switch (node.Name)
@@ -58,22 +74,19 @@ namespace BradyCodingChallenge.ConsoleApp
 
             foreach (var windGenerator in windGenerators)
             {
-                Console.WriteLine(windGenerator.Name);
+                Console.WriteLine($"Daily Generation Value for: {windGenerator.Name}");
+
+                foreach (var daily in windGenerator.Days)
+                {
+                    var selectedValueFactor = windGenerator.Name.Contains("Onshore") 
+                        ? valueFactor.High : valueFactor.Low;
+
+                    Console.WriteLine($"{daily.Date}");
+                    Console.WriteLine($"\tDaily Generation Value");
+                    Console.WriteLine($"\t\t{daily.Energy*daily.Price*selectedValueFactor}\n");
+                }
+                
             }
-
-            foreach (var gasGenerator in gasGenerators)
-            {
-                Console.WriteLine(gasGenerator.Name);
-            }
-
-            foreach (var coalGenerator in coalGenerators)
-            {
-                Console.WriteLine(coalGenerator.Name);
-            }
-
-            //Sample(elemList);
-            Console.ReadKey();
-
         }
     }
 }

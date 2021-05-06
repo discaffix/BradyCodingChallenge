@@ -1,10 +1,12 @@
 ﻿namespace BradyCodingChallenge.Model.Generators
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public class CoalGenerator : ThermalGenerator
     {
-
         /// <summary>
-        /// 
+        /// Empty constructor
         /// </summary>
         public CoalGenerator() { }
 
@@ -21,7 +23,6 @@
             TotalHeatInput = totalHeatInput;
             ActualNetGeneration = actualNetGeneration;
         }
-
 
         /// <summary>
         /// Gets or sets the total heat input.
