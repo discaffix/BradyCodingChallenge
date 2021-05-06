@@ -9,28 +9,37 @@ namespace BradyCodingChallenge.Model
 {
     public class Day
     {
+        /// <summary>
+        /// Empty Constructor
+        /// </summary>
         public Day() { }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="date">Date of the record</param>
+        /// <param name="energy">Energy record</param>
+        /// <param name="price">Price record</param>
         public Day(DateTime date, double energy, double price)
         {
             Date = date;
             Energy = energy;
             Price = price;
         }
-        [DataType(DataType.Date)]
-        [DisplayFormat]
+
+        /// <summary>
+        /// Date of which record was recorded
+        /// </summary>
         public DateTime Date { get; set; }
 
         /// <summary>
-        /// 
+        /// Energy record of the day
         /// </summary>
         public double Energy { get; set; }
 
         /// <summary>
-        /// 
+        /// Price record of the day
         /// </summary>
         public double Price { get; set; }
-
-
     }
 }

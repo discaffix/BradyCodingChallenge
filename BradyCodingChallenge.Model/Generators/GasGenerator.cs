@@ -9,7 +9,7 @@ namespace BradyCodingChallenge.Model.Generators
     public class GasGenerator : ThermalGenerator
     {
         /// <summary>
-        /// 
+        /// Empty Constructor
         /// </summary>
         public GasGenerator() { }
 

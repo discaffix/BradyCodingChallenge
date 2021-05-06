@@ -6,7 +6,7 @@
         /// <summary>
         /// 
         /// </summary>
-        CoalGenerator() { }
+        public CoalGenerator() { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CoalGenerator"/> class.
@@ -29,7 +29,7 @@
         /// <value>
         /// The total heat input.
         /// </value>
-        public double TotalHeatInput { get; set; }
+        protected double TotalHeatInput { get; set; }
 
         /// <summary>
         /// Gets or sets the actual net generation.
@@ -37,6 +37,6 @@
         /// <value>
         /// The actual net generation.
         /// </value>
-        public double ActualNetGeneration { get; set; }
+        protected double ActualNetGeneration { get; set; }
     }
 }

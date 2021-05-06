@@ -21,6 +21,9 @@ namespace BradyCodingChallenge.Model
             Name = name;
         }
 
+        /// <summary>
+        /// The name of the generator
+        /// </summary>
         public string Name { get; set; }
         
 
