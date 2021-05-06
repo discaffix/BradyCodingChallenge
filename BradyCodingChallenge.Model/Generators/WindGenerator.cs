@@ -6,5 +6,7 @@
         public WindGenerator(string name)
             : base(name)
         { }
+
+        public string Location { get; set; }
     }
 }

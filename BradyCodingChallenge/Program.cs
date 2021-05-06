@@ -17,18 +17,55 @@ namespace BradyCodingChallenge.ConsoleApp
 {
     internal class Program
     {
-        public static int counter = 0;
         public static void Main()
         {
             var doc = new XmlDocument();
             var projectDirectory = GetCurrentDirectory();
 
             doc.Load(@$"{projectDirectory}\ExtraFiles\GenerationReport.xml");
-            var windGenerators = doc.SelectNodes("/GenerationReport/Wind/WindGenerator");
+            var generators = doc.SelectNodes("//WindGenerator|//GasGenerator|//CoalGenerator");
 
+            Debug.Assert(generators != null, nameof(generators) + " != null");
+
+            foreach (XmlNode node in generators)
+            {
+                Console.WriteLine(node.Name + "\n");
+                
+                switch(node.Name)
+                {
+                    case "WindGenerator":
+                        GetListItemFromXml<WindGenerator>(node);
+                        break;
+                    case "GasGenerator":
+                        break;
+                    case "CoalGenerator":
+                        break;
+                }
+
+            }
 
             //Sample(elemList);
             Console.ReadKey();
+
+        }
+        
+        public static T GetListItemFromXml<T>(XmlNode node) where T : class
+        {
+            var obj = (T) Activator.CreateInstance(typeof(T), new object[] { });
+
+            foreach (XmlNode child in node.ChildNodes)
+            {
+                Console.WriteLine(child.Name);
+
+                if (child.Name != "Generation")
+                {
+                    var propertyInfo = obj.GetType().GetProperty(child.Name);
+                    propertyInfo.SetValue(obj, Convert.ChangeType(child.InnerText, propertyInfo.PropertyType), null);
+                }
+
+            }
+
+            return obj;
         }
 
         /// <summary>
