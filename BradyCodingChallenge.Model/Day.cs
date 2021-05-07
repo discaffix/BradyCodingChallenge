@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BradyCodingChallenge.Model
 {
-    public class Day
+    public class Day : IEnumerable
     {
         /// <summary>
         /// Empty Constructor
@@ -41,5 +42,10 @@ namespace BradyCodingChallenge.Model
         /// Price record of the day
         /// </summary>
         public double Price { get; set; }
+
+        public IEnumerator GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

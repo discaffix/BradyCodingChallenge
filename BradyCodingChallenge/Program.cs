@@ -2,7 +2,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Xml;
+using BradyCodingChallenge.Model;
 using BradyCodingChallenge.Model.Generators;
 using BradyCodingChallenge.Model.NewFolder;
 
@@ -10,27 +13,27 @@ namespace BradyCodingChallenge.ConsoleApp
 {
     internal class Program
     {
+        
+
         public static void Main()
         {
             var reader = new XmlReader();
-            
-            var projectDirectory = Path.GetFullPath(@"..\..\..\");
 
-            var referenceDataFileName = "ReferenceData";
-            var generationReportFileName = "GenerationReport";
+            var projectDirectory = Path.GetFullPath(@"..\..\..\");
+            
+            const string referenceDataFileName = "ReferenceData";
+            const string generationReportFileName = "GenerationReport";
 
             var pathToReport = @$"{projectDirectory}\ExtraFiles\{generationReportFileName}.xml";
             var pathToReferenceData = $@"{projectDirectory}\ExtraFiles\{referenceDataFileName}.xml";
             
-            var generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
-            var referenceDataXPath = "//ValueFactor|//EmissionFactor";
+            const string generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
+            const string referenceDataXPath = "//ValueFactor|//EmissionFactor";
             
             var emissionFactor = new EmissionFactor();
             var valueFactor = new ValueFactor();
 
-            ICollection<WindGenerator> windGenerators = new List<WindGenerator>();
-            ICollection<GasGenerator> gasGenerators = new List<GasGenerator>();
-            ICollection<CoalGenerator> coalGenerators = new List<CoalGenerator>();
+            ICollection<object> generatorCollection = new List<object>();
 
             var doc = new XmlDocument();
             doc.Load(pathToReport);
@@ -61,32 +64,75 @@ namespace BradyCodingChallenge.ConsoleApp
                 switch (node.Name)
                 {
                     case "WindGenerator":
-                        windGenerators.Add(reader.GeneratorNodeToList<WindGenerator>(node));
+                        generatorCollection.Add(reader.GeneratorNodeToList<WindGenerator>(node));
                         break;
                     case "GasGenerator":
-                        gasGenerators.Add(reader.GeneratorNodeToList<GasGenerator>(node));
+                        generatorCollection.Add(reader.GeneratorNodeToList<GasGenerator>(node));
                         break;
                     case "CoalGenerator":
-                        coalGenerators.Add(reader.GeneratorNodeToList<CoalGenerator>(node));
+                        generatorCollection.Add(reader.GeneratorNodeToList<CoalGenerator>(node));
+                        break;
+                    default:
+                        throw new Exception();
+                }
+            }
+
+            foreach (var generator in generatorCollection)
+            {
+                var name = (string) GetPropValue(generator, "Name");
+                var days = (ICollection<Day>) GetPropValue(generator, "Days");
+
+                double selectedEmissionFactor = 0;
+                double selectedValueFactor = 0;
+                
+                /*
+                 *  Offshore Wind:  ValueFactor(Low), EmissionFactor(N/A)
+                 *  Onshore Wind:   ValueFactor(High), EmissionFactor(N/A)
+                 *  Gas:            ValueFactor(Medium), EmissionFactor(Medium)
+                 *  Coal:           ValueFactor(Medium), EmissionFactor(High)
+                 */
+                switch (name)
+                {
+                    case "Wind[Onshore]":
+                        selectedValueFactor = valueFactor.High;
+                        break;
+                    case "Wind[Offshore]":
+                        selectedValueFactor = valueFactor.Low;
+                        break;
+                    case "Gas[1]":
+                        selectedValueFactor = valueFactor.High;
+                        selectedEmissionFactor = emissionFactor.Medium;
+                        break;
+                    case "Coal[1]":
+                        selectedValueFactor = valueFactor.Medium;
+                        selectedEmissionFactor = emissionFactor.High;
                         break;
                 }
-            }
 
-            foreach (var windGenerator in windGenerators)
-            {
-                Console.WriteLine($"Daily Generation Value for: {windGenerator.Name}");
-
-                foreach (var daily in windGenerator.Days)
-                {
-                    var selectedValueFactor = windGenerator.Name.Contains("Onshore") 
-                        ? valueFactor.High : valueFactor.Low;
-
-                    Console.WriteLine($"{daily.Date}");
-                    Console.WriteLine($"\tDaily Generation Value");
-                    Console.WriteLine($"\t\t{daily.Energy*daily.Price*selectedValueFactor}\n");
-                }
+                double totalGenerationValue = 0;
+                double highestEmission = 0;
                 
+                foreach (var day in days)
+                {
+                    totalGenerationValue += day.Energy * day.Price * selectedValueFactor;
+
+                    if (selectedEmissionFactor != 0)
+                    {
+                        var emissionRating = (double) GetPropValue(generator, "EmissionRating");
+                        var highestDailyEmission = day.Energy * emissionRating * selectedEmissionFactor;
+
+                        
+                    }
+                }
+
+                
+                Console.WriteLine($"{name}: {totalGenerationValue}");
             }
+        }
+
+        public static object GetPropValue(object src, string propertyName)
+        {
+            return src.GetType().GetProperty(propertyName)?.GetValue(src, null);
         }
     }
 }
