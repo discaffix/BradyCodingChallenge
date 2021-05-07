@@ -2,18 +2,16 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Xml;
 using BradyCodingChallenge.Model;
+using BradyCodingChallenge.Model.Factors;
 using BradyCodingChallenge.Model.Generators;
-using BradyCodingChallenge.Model.NewFolder;
 
 namespace BradyCodingChallenge.ConsoleApp
 {
     internal class Program
     {
-        
+        private static ICollection<Day> _allDaysCollection = new List<Day>();
 
         public static void Main()
         {
@@ -121,12 +119,20 @@ namespace BradyCodingChallenge.ConsoleApp
                         var emissionRating = (double) GetPropValue(generator, "EmissionRating");
                         var highestDailyEmission = day.Energy * emissionRating * selectedEmissionFactor;
 
+                        day.MaxEmissionGenerator.Emission = highestDailyEmission;
                         
+
+                        _allDaysCollection.Add(day);
                     }
                 }
 
                 
                 Console.WriteLine($"{name}: {totalGenerationValue}");
+            }
+
+            foreach (Day day in _allDaysCollection)
+            {
+                Console.WriteLine(day);
             }
         }
 

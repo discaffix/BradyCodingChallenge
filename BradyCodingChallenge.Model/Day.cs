@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BradyCodingChallenge.Model.GenerationOutput;
 
 namespace BradyCodingChallenge.Model
 {
@@ -43,9 +44,16 @@ namespace BradyCodingChallenge.Model
         /// </summary>
         public double Price { get; set; }
 
+        public MaxEmissionGenerator MaxEmissionGenerator { get; set; }
+
         public IEnumerator GetEnumerator()
         {
             throw new NotImplementedException();
+        }
+
+        public override string ToString()
+        {
+            return $"{Date}: {MaxEmissionGenerator.Emission}";
         }
     }
 }
