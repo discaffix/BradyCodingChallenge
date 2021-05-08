@@ -1,4 +1,7 @@
-﻿namespace BradyCodingChallenge.Model.Generators
+﻿using System.Reflection;
+using BradyCodingChallenge.Model.GenerationOutput;
+
+namespace BradyCodingChallenge.Model.Generators
 {
     /// <summary>
     /// 
@@ -30,7 +33,7 @@
         /// <value>
         /// The total heat input.
         /// </value>
-        protected double TotalHeatInput { get; set; }
+        public double TotalHeatInput { get; set; }
 
         /// <summary>
         /// Gets or sets the actual net generation.
@@ -38,6 +41,10 @@
         /// <value>
         /// The actual net generation.
         /// </value>
-        protected double ActualNetGeneration { get; set; }
+        public double ActualNetGeneration { get; set; }
+
+
+
+        public ActualHeatRates ActualHeatRates { get; set; }
     }
 }
