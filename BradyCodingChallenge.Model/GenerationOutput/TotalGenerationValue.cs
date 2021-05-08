@@ -1,19 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace BradyCodingChallenge.Model.GenerationOutput
+﻿namespace BradyCodingChallenge.Model.GenerationOutput
 {
     public class TotalGenerationValue
     {
-        public TotalGenerationValue(double total)
+        public TotalGenerationValue() { }
+        public TotalGenerationValue(string name, double total)
         {
+            Name = name;
             Total = total;
         }
 
-        
-        public double Total{ get; set; }
+        public string Name { get; set; }
+        public double Total { get; set; }
+
+
+        public override string ToString()
+        {
+            return $"{Name}: {Total}";
+        }
     }
 }

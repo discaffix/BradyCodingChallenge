@@ -8,7 +8,7 @@ namespace BradyCodingChallenge.Model.GenerationOutput
 {
     public class MaxEmissionGenerator : Generator
     {
-        public MaxEmissionGenerator(string name, DateTime date, double emission)
+        public MaxEmissionGenerator(string name, double emission)
             : base(name)
         {
             Emission = emission;

@@ -53,7 +53,7 @@ namespace BradyCodingChallenge.Model
 
         public override string ToString()
         {
-            return $"{Date}: {MaxEmissionGenerator.Emission}";
+            return $"{Date}: [{MaxEmissionGenerator.Name}] {MaxEmissionGenerator.Emission}";
         }
     }
 }

@@ -1,34 +1,39 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Xml;
 using BradyCodingChallenge.Model;
 using BradyCodingChallenge.Model.Factors;
+using BradyCodingChallenge.Model.GenerationOutput;
 using BradyCodingChallenge.Model.Generators;
 
 namespace BradyCodingChallenge.ConsoleApp
 {
     internal class Program
     {
-        private static ICollection<Day> _allDaysCollection = new List<Day>();
+        private static readonly ICollection<Day> AllDaysCollection = new List<Day>();
+
+        private static readonly ICollection<TotalGenerationValue> AllTotalGenerationValuesCollection
+            = new List<TotalGenerationValue>();
 
         public static void Main()
         {
             var reader = new XmlReader();
 
             var projectDirectory = Path.GetFullPath(@"..\..\..\");
-            
+
             const string referenceDataFileName = "ReferenceData";
             const string generationReportFileName = "GenerationReport";
 
             var pathToReport = @$"{projectDirectory}\ExtraFiles\{generationReportFileName}.xml";
             var pathToReferenceData = $@"{projectDirectory}\ExtraFiles\{referenceDataFileName}.xml";
-            
+
             const string generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
-            const string referenceDataXPath = "//ValueFactor|//EmissionFactor";
-            
-            var emissionFactor = new EmissionFactor();
+            const string referenceDataXPath = "//ValueFactor|//EmissionsFactor";
+
+            var emissionFactor = new EmissionsFactor();
             var valueFactor = new ValueFactor();
 
             ICollection<object> generatorCollection = new List<object>();
@@ -44,21 +49,18 @@ namespace BradyCodingChallenge.ConsoleApp
 
             Debug.Assert(factors != null, nameof(factors) + " != null");
             foreach (XmlNode node in factors)
-            {
                 switch (node.Name)
                 {
-                    case "EmissionFactor":
-                        emissionFactor = reader.FactorNodeToObject<EmissionFactor>(node);
+                    case "EmissionsFactor":
+                        emissionFactor = reader.FactorNodeToObject<EmissionsFactor>(node);
                         break;
                     case "ValueFactor":
                         valueFactor = reader.FactorNodeToObject<ValueFactor>(node);
                         break;
                 }
-            }
 
             Debug.Assert(generators != null, nameof(generators) + " != null");
             foreach (XmlNode node in generators)
-            {
                 switch (node.Name)
                 {
                     case "WindGenerator":
@@ -73,7 +75,6 @@ namespace BradyCodingChallenge.ConsoleApp
                     default:
                         throw new Exception();
                 }
-            }
 
             foreach (var generator in generatorCollection)
             {
@@ -82,7 +83,7 @@ namespace BradyCodingChallenge.ConsoleApp
 
                 double selectedEmissionFactor = 0;
                 double selectedValueFactor = 0;
-                
+
                 /*
                  *  Offshore Wind:  ValueFactor(Low), EmissionFactor(N/A)
                  *  Onshore Wind:   ValueFactor(High), EmissionFactor(N/A)
@@ -107,35 +108,47 @@ namespace BradyCodingChallenge.ConsoleApp
                         break;
                 }
 
-                double totalGenerationValue = 0;
-                double highestEmission = 0;
-                
+                var totalGenerationValue = new TotalGenerationValue();
+
                 foreach (var day in days)
                 {
-                    totalGenerationValue += day.Energy * day.Price * selectedValueFactor;
+                    totalGenerationValue.Total += day.Energy * day.Price * selectedValueFactor;
 
-                    if (selectedEmissionFactor != 0)
-                    {
-                        var emissionRating = (double) GetPropValue(generator, "EmissionRating");
-                        var highestDailyEmission = day.Energy * emissionRating * selectedEmissionFactor;
+                    if (selectedEmissionFactor == 0) continue;
 
-                        day.MaxEmissionGenerator.Emission = highestDailyEmission;
-                        
+                    var emissionRating = (double) GetPropValue(generator, "EmissionsRating");
+                    var highestDailyEmission = day.Energy * emissionRating * selectedEmissionFactor;
 
-                        _allDaysCollection.Add(day);
-                    }
+                    day.MaxEmissionGenerator = new MaxEmissionGenerator(name, highestDailyEmission);
+                    AllDaysCollection.Add(day);
                 }
 
-                
-                Console.WriteLine($"{name}: {totalGenerationValue}");
+                totalGenerationValue.Name = name;
+
+                AllTotalGenerationValuesCollection.Add(totalGenerationValue);
+
+                //Console.WriteLine($"{name}: {totalGenerationValue}");
+
             }
 
-            foreach (Day day in _allDaysCollection)
+            PrintCollectionMembers(AllDaysCollection);
+            PrintCollectionMembers(AllTotalGenerationValuesCollection);
+        }
+        //
+        public static void PrintCollectionMembers<T>(ICollection<T> collection)
+        {
+            foreach (var childObject in collection)
             {
-                Console.WriteLine(day);
+                Console.WriteLine(childObject);
             }
         }
-
+        
+        /// <summary>
+        ///     Gets the property value.
+        /// </summary>
+        /// <param name="src">The source.</param>
+        /// <param name="propertyName">Name of the property.</param>
+        /// <returns></returns>
         public static object GetPropValue(object src, string propertyName)
         {
             return src.GetType().GetProperty(propertyName)?.GetValue(src, null);

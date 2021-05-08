@@ -20,7 +20,7 @@ namespace BradyCodingChallenge.ConsoleApp
         /// <param name="item">Generator object</param>
         /// <param name="propertyName">Property of the generator object</param>
         /// <param name="valObj">Property of the generator object</param>
-        private static void SetValue<T>([Optional] XmlNode node, T item, [Optional] string propertyName, [Optional] ICollection<Day> valObj) where T : class
+        public static void SetValue<T>([Optional] XmlNode node, T item, [Optional] string propertyName, [Optional] ICollection<Day> valObj) where T : class
         {
             var propInfo = item.GetType().GetProperty(propertyName ?? node.Name);
             propInfo?.SetValue(item, valObj ?? Convert.ChangeType(node.InnerText, propInfo.PropertyType), null);

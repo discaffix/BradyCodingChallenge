@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Runtime.InteropServices;
-using BradyCodingChallenge.Model.GenerationOutput;
+﻿using System.Collections.Generic;
 
 namespace BradyCodingChallenge.Model
 {
@@ -26,11 +22,6 @@ namespace BradyCodingChallenge.Model
         /// The name of the generator
         /// </summary>
         public string Name { get; set; }
-
-        /// <summary>
-        /// Total Emission Per
-        /// </summary>
-        public MaxEmissionGenerator MaxEmissionGenerator{ get; set; }
 
         /// <summary>
         /// The daily report of the Power Generation
