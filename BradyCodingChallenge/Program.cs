@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -17,26 +15,26 @@ namespace BradyCodingChallenge.ConsoleApp
    
     internal class Program
     {
-        private static string _projectDirectory = Path.GetFullPath(@"..\..\..\");
+        private static readonly string ProjectDirectory = Path.GetFullPath(@"..\..\..\");
 
-        private const string _referenceDataFileName = "ReferenceData";
-        private const string _generationReportFileName = "GenerationReport";
-        private const string _randomTestFile = "RandomTestFile";
+        private const string ReferenceDataFileName = "ReferenceData";
+        private const string GenerationReportFileName = "GenerationReport";
+        private const string RandomTestFile = "RandomTestFile";
 
-        private static ICollection<Day> AllDaysCollection = new List<Day>();
+        private static ICollection<Day> _allDaysCollection = new List<Day>();
 
         private static readonly ICollection<TotalGenerationValue> AllTotalGenerationValuesCollection
             = new List<TotalGenerationValue>();
 
-        private static ICollection<ActualHeatRates> _actualHeatRates = new List<ActualHeatRates>();
+        private static readonly ICollection<ActualHeatRates> ActualHeatRates = new List<ActualHeatRates>();
 
         public static void Main()
         {
             var reader = new XmlReader();
 
             
-            var pathToReport = @$"{_projectDirectory}\ExtraFiles\{_generationReportFileName}.xml";
-            var pathToReferenceData = $@"{_projectDirectory}\ExtraFiles\{_referenceDataFileName}.xml";
+            var pathToReport = @$"{ProjectDirectory}\ExtraFiles\{GenerationReportFileName}.xml";
+            var pathToReferenceData = $@"{ProjectDirectory}\ExtraFiles\{ReferenceDataFileName}.xml";
 
             const string generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
             const string referenceDataXPath = "//ValueFactor|//EmissionsFactor";
@@ -56,6 +54,7 @@ namespace BradyCodingChallenge.ConsoleApp
             var factors = referenceDataDoc.SelectNodes(referenceDataXPath);
 
             Debug.Assert(factors != null, nameof(factors) + " != null");
+            
             foreach (XmlNode node in factors)
                 switch (node.Name)
                 {
@@ -66,8 +65,22 @@ namespace BradyCodingChallenge.ConsoleApp
                         valueFactor = reader.FactorNodeToObject<ValueFactor>(node);
                         break;
                 }
+            
+            PopulateGeneratorCollection(generators, generatorCollection, reader);
+            ObjectToOutputObjects(generatorCollection, valueFactor, emissionFactor);
 
-            Debug.Assert(generators != null, nameof(generators) + " != null");
+            // selects the day with highest emission
+            _allDaysCollection = _allDaysCollection
+                .GroupBy(day => day.Date)
+                .Select(x => x.OrderByDescending(y => y.MaxEmissionGenerator.Emission).
+                    First())
+                .ToList();
+            
+            CreateXmlFile();
+        }
+
+        private static void PopulateGeneratorCollection(XmlNodeList generators, ICollection<object> generatorCollection, XmlReader reader)
+        {
             foreach (XmlNode node in generators)
                 switch (node.Name)
                 {
@@ -83,7 +96,10 @@ namespace BradyCodingChallenge.ConsoleApp
                     default:
                         throw new Exception();
                 }
+        }
 
+        private static void ObjectToOutputObjects(IEnumerable<object> generatorCollection, Factor valueFactor, Factor emissionFactor)
+        {
             foreach (var generator in generatorCollection)
             {
                 var name = (string) GetPropValue(generator, "Name");
@@ -98,23 +114,7 @@ namespace BradyCodingChallenge.ConsoleApp
                  *  Gas:            ValueFactor(Medium), EmissionFactor(Medium)
                  *  Coal:           ValueFactor(Medium), EmissionFactor(High)
                  */
-                switch (name)
-                {
-                    case "Wind[Onshore]":
-                        selectedValueFactor = valueFactor.High;
-                        break;
-                    case "Wind[Offshore]":
-                        selectedValueFactor = valueFactor.Low;
-                        break;
-                    case "Gas[1]":
-                        selectedValueFactor = valueFactor.High;
-                        selectedEmissionFactor = emissionFactor.Medium;
-                        break;
-                    case "Coal[1]":
-                        selectedValueFactor = valueFactor.Medium;
-                        selectedEmissionFactor = emissionFactor.High;
-                        break;
-                }
+                selectedValueFactor = CalculateEmissionAndValueFactor(valueFactor, emissionFactor, name, selectedValueFactor, ref selectedEmissionFactor);
 
                 var totalGenerationValue = new TotalGenerationValue();
 
@@ -128,11 +128,8 @@ namespace BradyCodingChallenge.ConsoleApp
                     var highestDailyEmission = day.Energy * emissionRating * selectedEmissionFactor;
 
                     day.MaxEmissionGenerator = new MaxEmissionGenerator(name, highestDailyEmission);
-                    AllDaysCollection.Add(day);
-                    
+                    _allDaysCollection.Add(day);
                 }
-
-
 
 
                 totalGenerationValue.Name = name;
@@ -143,26 +140,37 @@ namespace BradyCodingChallenge.ConsoleApp
 
                 //var totalHeatInput = (double) GetPropValue(generator, "TotalHeatInput");
 
-                var gen = (CoalGenerator)generator;
+                var gen = (CoalGenerator) generator;
                 var actualHeatRates = gen.TotalHeatInput / gen.ActualNetGeneration;
 
                 gen.ActualHeatRates = new ActualHeatRates(gen.Name, actualHeatRates);
 
-                _actualHeatRates.Add(gen.ActualHeatRates);
+                ActualHeatRates.Add(gen.ActualHeatRates);
+            }
+        }
+
+        private static double CalculateEmissionAndValueFactor(Factor valueFactor, Factor emissionFactor, string name,
+            double selectedValueFactor, ref double selectedEmissionFactor)
+        {
+            switch (name)
+            {
+                case "Wind[Onshore]":
+                    selectedValueFactor = valueFactor.High;
+                    break;
+                case "Wind[Offshore]":
+                    selectedValueFactor = valueFactor.Low;
+                    break;
+                case "Gas[1]":
+                    selectedValueFactor = valueFactor.High;
+                    selectedEmissionFactor = emissionFactor.Medium;
+                    break;
+                case "Coal[1]":
+                    selectedValueFactor = valueFactor.Medium;
+                    selectedEmissionFactor = emissionFactor.High;
+                    break;
             }
 
-            // selects the day with highest emission
-            AllDaysCollection = AllDaysCollection
-                .GroupBy(day => day.Date)
-                .Select(x => x.OrderByDescending(y => y.MaxEmissionGenerator.Emission).
-                    First())
-                .ToList();
-            
-
-            //PrintCollectionMembers(highestDailyEmissions);
-            //PrintCollectionMembers(AllTotalGenerationValuesCollection);
-            PrintCollectionMembers(_actualHeatRates);
-            CreateXmlFile();
+            return selectedValueFactor;
         }
 
         public static void CreateXmlFile()
@@ -208,7 +216,7 @@ namespace BradyCodingChallenge.ConsoleApp
                 totalElement.AppendChild(totalText);
             });
 
-            AllDaysCollection.ToList().ForEach(x =>
+            _allDaysCollection.ToList().ForEach(x =>
             {
                 dayElement = CreateNewElementAndAppendChild(newDoc, "Day", maxEmissionGeneratorsNode);
                 nameElement = CreateNewElementAndAppendChild(newDoc, "Name", dayElement);
@@ -226,7 +234,7 @@ namespace BradyCodingChallenge.ConsoleApp
 
             var actualHeatRatesElement = CreateNewElementAndAppendChild(newDoc, "ActualHeatRates", generationOutputElement);
 
-            _actualHeatRates.ToList().ForEach(x =>
+            ActualHeatRates.ToList().ForEach(x =>
             {
                 generatorElement = CreateNewElementAndAppendChild(newDoc, "Generator", actualHeatRatesElement);
                 nameElement = CreateNewElementAndAppendChild(newDoc, "Name", generatorElement);
@@ -240,7 +248,7 @@ namespace BradyCodingChallenge.ConsoleApp
             });
 
           
-            newDoc.Save(@$"{_projectDirectory}\Output\{_randomTestFile}.xml");
+            newDoc.Save(@$"{ProjectDirectory}\Output\{RandomTestFile}.xml");
         }
 
         /// <summary>
@@ -268,8 +276,6 @@ namespace BradyCodingChallenge.ConsoleApp
             {
                 Console.WriteLine(childObject);
             }
-            
-
         }
 
         /// <summary>
