@@ -16,7 +16,6 @@ namespace BradyCodingChallenge.ConsoleApp
    
     internal class Program
     {
-
         private static readonly string ProjectDirectory = Path.GetFullPath(@"..\..\..\");
         
         private const string ReferenceDataFileName = "ReferenceData";
@@ -25,30 +24,47 @@ namespace BradyCodingChallenge.ConsoleApp
 
         private static ICollection<Day> _allDaysCollection = new List<Day>();
 
-        private static readonly ICollection<TotalGenerationValue> AllTotalGenerationValuesCollection = new List<TotalGenerationValue>();
-        private static readonly ICollection<ActualHeatRates> ActualHeatRates = new List<ActualHeatRates>();
-        private static readonly ICollection<object> GeneratorCollection = new List<object>();
+        private static ICollection<TotalGenerationValue> _allTotalGenerationValuesCollection = new List<TotalGenerationValue>();
+        private static ICollection<ActualHeatRates> _actualHeatRates = new List<ActualHeatRates>();
+        private static ICollection<object> _generatorCollection = new List<object>();
 
         public static void Main()
         {
             var appSettings = ConfigurationManager.AppSettings;
-
             var inputFolder = appSettings["InputFolder"];
+   
+            var watcher = new FileSystemWatcher
+            {
+                Path = inputFolder, NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size, Filter = "*.xml"
+            };
+
+            watcher.Created += OnCreated;
+            watcher.EnableRaisingEvents = true;
+            
+            Console.ReadLine();
+        }
+
+        private static void OnCreated(object source, FileSystemEventArgs e)
+        {
+            if (e.ChangeType != WatcherChangeTypes.Created)
+                return;
+
+            Console.WriteLine($"Changed: {e.FullPath}");
+
+            var appSettings = ConfigurationManager.AppSettings;
+
             var outputFolder = appSettings["OutputFolder"];
             var referenceDataFolder = appSettings["ReferenceDataFolder"];
-            
+            var inputFolder = appSettings["InputFolder"];
+
             var reader = new XmlReader();
 
-            // path locations
+            var pathToReport = e.FullPath;
+            _allTotalGenerationValuesCollection = new List<TotalGenerationValue>();
+            _actualHeatRates = new List<ActualHeatRates>();
+            _generatorCollection = new List<object>();
 
-            //var pathToReport = @$"{ProjectDirectory}\ExtraFiles\{GenerationReportFileName}.xml";
-            var pathToReport = @$"{inputFolder}\{GenerationReportFileName}.xml";
-            //var pathToReferenceData = $@"{ProjectDirectory}\ExtraFiles\{ReferenceDataFileName}.xml";
-            var pathToReferenceData = $@"{outputFolder}\{RandomTestFile}.xml";
-            // xPath string which contains all of the generators
             const string generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
-
-            // xPath string which contains all of the factors
             const string referenceDataXPath = "//ValueFactor|//EmissionsFactor";
 
             // factors
@@ -56,9 +72,15 @@ namespace BradyCodingChallenge.ConsoleApp
             var valueFactor = new ValueFactor();
 
             ICollection<object> generatorCollection = new List<object>();
-
+            
             var doc = new XmlDocument();
-            doc.Load(pathToReport);
+            try
+            {
+                doc.Load(pathToReport);
+            } catch (IOException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
 
             var referenceDataDoc = new XmlDocument();
             referenceDataDoc.Load(referenceDataFolder);
@@ -67,15 +89,28 @@ namespace BradyCodingChallenge.ConsoleApp
             var factors = referenceDataDoc.SelectNodes(referenceDataXPath);
 
             emissionFactor = ParseValueAndEmissionsFactor(factors, emissionFactor, reader, ref valueFactor);
-            
-            PopulateGeneratorCollection(generators, GeneratorCollection, reader);
-            ObjectToOutputObjects(GeneratorCollection, valueFactor, emissionFactor);
+
+            PopulateGeneratorCollection(generators, _generatorCollection, reader);
+            ObjectToOutputObjects(_generatorCollection, valueFactor, emissionFactor);
 
             SetDistinctAllDayCollectionWithHighestValue();
             CreateXmlFile(outputFolder);
 
+            try
+            {
+                var currentDate = DateTime.UtcNow;
+                var unixTimeInMilliseconds = new DateTimeOffset(currentDate).ToUnixTimeMilliseconds();
+                var newFileName = $"{Path.GetFileNameWithoutExtension(e.FullPath)}-{ unixTimeInMilliseconds}";
 
-
+                if (!File.Exists(e.FullPath)) return;
+                
+                File.Move(e.FullPath, @$"{inputFolder}\ReadReports\{newFileName}.xml");
+                Console.WriteLine(@$"Moved {e.Name} to \ReadReports");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         private static void SetDistinctAllDayCollectionWithHighestValue()
@@ -153,8 +188,6 @@ namespace BradyCodingChallenge.ConsoleApp
                  */
                 var selectedValueFactor = GetValueFactorForGenerator(valueFactor, name);
                 var selectedEmissionFactor = GetEmissionFactorForGenerator(emissionFactor, name);
-
-                    
                 var totalGenerationValue = new TotalGenerationValue();
 
                 foreach (var day in days)
@@ -172,7 +205,7 @@ namespace BradyCodingChallenge.ConsoleApp
 
 
                 totalGenerationValue.Name = name;
-                AllTotalGenerationValuesCollection.Add(totalGenerationValue);
+                _allTotalGenerationValuesCollection.Add(totalGenerationValue);
 
 
                 if (!name.Contains("Coal")) continue;
@@ -183,8 +216,7 @@ namespace BradyCodingChallenge.ConsoleApp
                 var actualHeatRates = gen.TotalHeatInput / gen.ActualNetGeneration;
 
                 gen.ActualHeatRates = new ActualHeatRates(gen.Name, actualHeatRates);
-
-                ActualHeatRates.Add(gen.ActualHeatRates);
+                _actualHeatRates.Add(gen.ActualHeatRates);
             }
         }
 
@@ -240,12 +272,12 @@ namespace BradyCodingChallenge.ConsoleApp
             var generationOutputElement = newDoc.CreateElement(string.Empty, "GenerationOutput", string.Empty);
             newDoc.AppendChild(generationOutputElement);
 
-            var totalsElement = CreateNewElementAndAppendChild(newDoc, "GenerationOutput", generationOutputElement);
+            var totalsElement = CreateNewElementAndAppendChild(newDoc, "Totals", generationOutputElement);
             var maxEmissionGeneratorsNode =
                 CreateNewElementAndAppendChild(newDoc, "MaxEmissionGenerators", generationOutputElement);
 
 
-            AllTotalGenerationValuesCollection.ToList().ForEach(x =>
+            _allTotalGenerationValuesCollection.ToList().ForEach(x =>
             {
                 generatorElement = CreateNewElementAndAppendChild(newDoc, "Generator", totalsElement);
                 nameElement = CreateNewElementAndAppendChild(newDoc, "Name", generatorElement);
@@ -276,7 +308,7 @@ namespace BradyCodingChallenge.ConsoleApp
 
             var actualHeatRatesElement = CreateNewElementAndAppendChild(newDoc, "ActualHeatRates", generationOutputElement);
 
-            ActualHeatRates.ToList().ForEach(x =>
+            _actualHeatRates.ToList().ForEach(x =>
             {
                 generatorElement = CreateNewElementAndAppendChild(newDoc, "Generator", actualHeatRatesElement);
                 nameElement = CreateNewElementAndAppendChild(newDoc, "Name", generatorElement);
@@ -289,9 +321,29 @@ namespace BradyCodingChallenge.ConsoleApp
                 heatRateElement.AppendChild(heatRatesText);
             });
 
-          
-            //newDoc.Save(@$"{ProjectDirectory}\Output\{RandomTestFile}.xml");
-            newDoc.Save($@"{secondPath}\{RandomTestFile}.xml");
+            
+
+            var latestFile = $@"{secondPath}\{RandomTestFile}.xml";
+
+            var currentDate = DateTime.UtcNow;
+            var unixTimeInMilliseconds = new DateTimeOffset(currentDate).ToUnixTimeMilliseconds();
+            try
+            {
+                if (File.Exists(latestFile))
+                {
+                    File.Move(latestFile, $@"{secondPath}\OldGenerationOutput\{RandomTestFile}-{unixTimeInMilliseconds}.xml");
+                    newDoc.Save($@"{secondPath}\{RandomTestFile}.xml");
+                }
+                else
+                {
+                    newDoc.Save($@"{secondPath}\{RandomTestFile}.xml");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
         }
 
         /// <summary>
