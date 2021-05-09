@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Xml;
 using BradyCodingChallenge.Model;
@@ -26,10 +25,10 @@ namespace BradyCodingChallenge.ConsoleApp
         }
 
         /// <summary>
-        /// 
+        /// Converts the generator node and all of its children to objects
         /// </summary>
-        /// <typeparam name="T">T</typeparam>
-        /// <param name="node"></param>
+        /// <typeparam name="T">Type of generator</typeparam>
+        /// <param name="node">Generator node from XmlDocument</param>
         /// <returns></returns>
         internal T GeneratorNodeToList<T>(XmlNode node) where T : class
         {
@@ -78,9 +77,9 @@ namespace BradyCodingChallenge.ConsoleApp
         }
 
         /// <summary>
-        /// 
+        /// returns an object of the corresponding factor node
         /// </summary>
-        /// <param name="node"></param>
+        /// <param name="node">Factor node</param>
         /// <returns></returns>
         public virtual T FactorNodeToObject<T>(XmlNode node) where T : class
         {
