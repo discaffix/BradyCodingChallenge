@@ -10,20 +10,14 @@ using BradyCodingChallenge.Model.Factors;
 using BradyCodingChallenge.Model.GenerationOutput;
 using BradyCodingChallenge.Model.Generators;
 using System.Configuration;
-
 namespace BradyCodingChallenge.ConsoleApp
 {
    
     internal class Program
     {
-        private static readonly string ProjectDirectory = Path.GetFullPath(@"..\..\..\");
-        
-        private const string ReferenceDataFileName = "ReferenceData";
-        private const string GenerationReportFileName = "GenerationReport";
-        private const string RandomTestFile = "RandomTestFile";
+        private const string RandomTestFile = "GenerationOutput";
 
         private static ICollection<Day> _allDaysCollection = new List<Day>();
-
         private static ICollection<TotalGenerationValue> _allTotalGenerationValuesCollection = new List<TotalGenerationValue>();
         private static ICollection<ActualHeatRates> _actualHeatRates = new List<ActualHeatRates>();
         private static ICollection<object> _generatorCollection = new List<object>();
@@ -32,79 +26,89 @@ namespace BradyCodingChallenge.ConsoleApp
         {
             var appSettings = ConfigurationManager.AppSettings;
             var inputFolder = appSettings["InputFolder"];
-   
+
+
+            if (!Directory.Exists(inputFolder))
+                Directory.CreateDirectory(inputFolder ?? throw new InvalidOperationException());
+
             var watcher = new FileSystemWatcher
             {
-                Path = inputFolder, NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size, Filter = "*.xml"
+                Path = inputFolder ?? throw new InvalidOperationException(), NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size, Filter = "*.xml"
             };
 
             watcher.Created += OnCreated;
             watcher.EnableRaisingEvents = true;
-            
+
+            Console.WriteLine("Put a file in the Input Folder to parse it, or press enter to exit.");
             Console.ReadLine();
         }
 
+        /// <summary>
+        /// Triggered whenever
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="e"></param>
         private static void OnCreated(object source, FileSystemEventArgs e)
         {
             if (e.ChangeType != WatcherChangeTypes.Created)
                 return;
-
-            Console.WriteLine($"Changed: {e.FullPath}");
-
+            
+            const string generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
+            const string referenceDataXPath = "//ValueFactor|//EmissionsFactor";
+            
             var appSettings = ConfigurationManager.AppSettings;
-
             var outputFolder = appSettings["OutputFolder"];
             var referenceDataFolder = appSettings["ReferenceDataFolder"];
             var inputFolder = appSettings["InputFolder"];
 
             var reader = new XmlReader();
-
             var pathToReport = e.FullPath;
+            
+            //redeclare lists to empty them
             _allTotalGenerationValuesCollection = new List<TotalGenerationValue>();
             _actualHeatRates = new List<ActualHeatRates>();
             _generatorCollection = new List<object>();
 
-            const string generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
-            const string referenceDataXPath = "//ValueFactor|//EmissionsFactor";
-
-            // factors
             var emissionFactor = new EmissionsFactor();
             var valueFactor = new ValueFactor();
 
             ICollection<object> generatorCollection = new List<object>();
             
             var doc = new XmlDocument();
-            try
+            var referenceDataDoc = new XmlDocument();
+            try 
             {
                 doc.Load(pathToReport);
-            } catch (IOException ex)
+                referenceDataDoc.Load(referenceDataFolder!);
+            }
+            catch (IOException ex)
             {
                 Console.WriteLine(ex.Message);
             }
-
-            var referenceDataDoc = new XmlDocument();
-            referenceDataDoc.Load(referenceDataFolder);
-
+            
             var generators = doc.SelectNodes(generatorXPath);
             var factors = referenceDataDoc.SelectNodes(referenceDataXPath);
+            var oldReportsFolder = @$"{inputFolder}\OldReports";
+
+            if (!Directory.Exists(oldReportsFolder))
+                Directory.CreateDirectory(oldReportsFolder);
 
             emissionFactor = ParseValueAndEmissionsFactor(factors, emissionFactor, reader, ref valueFactor);
 
             PopulateGeneratorCollection(generators, _generatorCollection, reader);
-            ObjectToOutputObjects(_generatorCollection, valueFactor, emissionFactor);
+            ObjectListToOutputObjects(_generatorCollection, valueFactor, emissionFactor);
 
             SetDistinctAllDayCollectionWithHighestValue();
             CreateXmlFile(outputFolder);
 
             try
             {
-                var currentDate = DateTime.UtcNow;
-                var unixTimeInMilliseconds = new DateTimeOffset(currentDate).ToUnixTimeMilliseconds();
-                var newFileName = $"{Path.GetFileNameWithoutExtension(e.FullPath)}-{ unixTimeInMilliseconds}";
 
+
+                var newFileName = GetNewFileName(e.FullPath);
                 if (!File.Exists(e.FullPath)) return;
                 
-                File.Move(e.FullPath, @$"{inputFolder}\ReadReports\{newFileName}.xml");
+                File.Move(e.FullPath, @$"{oldReportsFolder}\{newFileName}.xml");
                 Console.WriteLine(@$"Moved {e.Name} to \ReadReports");
             }
             catch (Exception ex)
@@ -113,6 +117,22 @@ namespace BradyCodingChallenge.ConsoleApp
             }
         }
 
+        /// <summary>
+        /// Get the new name of the file that is to be stored
+        /// </summary>
+        /// <param name="fullPath"></param>
+        /// <returns>new file name</returns>
+        private static string GetNewFileName(string fullPath)
+        {
+            var currentDate = DateTime.UtcNow;
+            var unixTimeInMilliseconds = new DateTimeOffset(currentDate).ToUnixTimeMilliseconds();
+            var newFileName = $"{Path.GetFileNameWithoutExtension(fullPath)}-{unixTimeInMilliseconds}";
+            return newFileName;
+        }
+
+        /// <summary>
+        ///  Select the day with the highest emission, and filter out the rest
+        /// </summary>
         private static void SetDistinctAllDayCollectionWithHighestValue()
         {
             _allDaysCollection = _allDaysCollection
@@ -141,6 +161,8 @@ namespace BradyCodingChallenge.ConsoleApp
                     case "ValueFactor":
                         valueFactor = reader.FactorNodeToObject<ValueFactor>(node);
                         break;
+                    default:
+                        throw new NotImplementedException();
                 }
 
             return emissionFactor;
@@ -171,15 +193,19 @@ namespace BradyCodingChallenge.ConsoleApp
                 }
         }
         
-        // TODO: Change method name to something that makes more sense
-        private static void ObjectToOutputObjects(IEnumerable<object> generatorCollection, Factor valueFactor, Factor emissionFactor)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="generatorCollection">Collection of generators</param>
+        /// <param name="valueFactor">ValueFactor of the object</param>
+        /// <param name="emissionFactor">EmissionFactor of the object</param>
+        private static void ObjectListToOutputObjects(IEnumerable<object> generatorCollection, Factor valueFactor, Factor emissionFactor)
         {
             foreach (var generator in generatorCollection)
             {
                 var name = (string) GetPropValue(generator, "Name");
                 var days = (ICollection<Day>) GetPropValue(generator, "Days");
-
-
+                
                 /*
                  *  Offshore Wind:  ValueFactor(Low), EmissionFactor(N/A)
                  *  Onshore Wind:   ValueFactor(High), EmissionFactor(N/A)
@@ -188,12 +214,13 @@ namespace BradyCodingChallenge.ConsoleApp
                  */
                 var selectedValueFactor = GetValueFactorForGenerator(valueFactor, name);
                 var selectedEmissionFactor = GetEmissionFactorForGenerator(emissionFactor, name);
+
                 var totalGenerationValue = new TotalGenerationValue();
 
+                
                 foreach (var day in days)
                 {
                     totalGenerationValue.Total += day.Energy * day.Price * selectedValueFactor;
-
                     if (selectedEmissionFactor == 0) continue;
 
                     var emissionRating = (double) GetPropValue(generator, "EmissionsRating");
@@ -203,24 +230,29 @@ namespace BradyCodingChallenge.ConsoleApp
                     _allDaysCollection.Add(day);
                 }
 
-
                 totalGenerationValue.Name = name;
                 _allTotalGenerationValuesCollection.Add(totalGenerationValue);
 
-
-                if (!name.Contains("Coal")) continue;
-
-                //var totalHeatInput = (double) GetPropValue(generator, "TotalHeatInput");
-
-                var gen = (CoalGenerator) generator;
-                var actualHeatRates = gen.TotalHeatInput / gen.ActualNetGeneration;
-
-                gen.ActualHeatRates = new ActualHeatRates(gen.Name, actualHeatRates);
-                _actualHeatRates.Add(gen.ActualHeatRates);
+                GetActualHeatRatesForCoalGenerator(name, generator);
             }
         }
 
+        private static void GetActualHeatRatesForCoalGenerator(string name, object generator)
+        {
+            if (!name.Contains("Coal")) return;
+            var gen = (CoalGenerator) generator;
+            var actualHeatRates = gen.TotalHeatInput / gen.ActualNetGeneration;
 
+            gen.ActualHeatRates = new ActualHeatRates(gen.Name, actualHeatRates);
+            _actualHeatRates.Add(gen.ActualHeatRates);
+        }
+
+        /// <summary>
+        /// Get the Value Factor for generators
+        /// </summary>
+        /// <param name="valueFactor"></param>
+        /// <param name="name"></param>
+        /// <returns>ValueFactor for specified generator</returns>
         private static double GetValueFactorForGenerator(Factor valueFactor, string name)
         {
             var selectedValueFactor = name switch
@@ -235,6 +267,12 @@ namespace BradyCodingChallenge.ConsoleApp
             return selectedValueFactor;
         }
 
+        /// <summary>
+        /// Get the Emission Factor for generator
+        /// </summary>
+        /// <param name="emissionFactor"></param>
+        /// <param name="name"></param>
+        /// <returns>EmissionsValue for specified generator</returns>
         private static double GetEmissionFactorForGenerator(Factor emissionFactor, string name)
         {
             var selectedEmissionFactor = name switch
@@ -247,7 +285,11 @@ namespace BradyCodingChallenge.ConsoleApp
             return selectedEmissionFactor;
         }
 
-        public static void CreateXmlFile(string secondPath)
+        /// <summary>
+        /// Create Xml File with data from output objects
+        /// </summary>
+        /// <param name="outputPath">path to the output string</param>
+        public static void CreateXmlFile(string outputPath)
         {
             XmlElement generatorElement;
             XmlElement nameElement;
@@ -275,7 +317,6 @@ namespace BradyCodingChallenge.ConsoleApp
             var totalsElement = CreateNewElementAndAppendChild(newDoc, "Totals", generationOutputElement);
             var maxEmissionGeneratorsNode =
                 CreateNewElementAndAppendChild(newDoc, "MaxEmissionGenerators", generationOutputElement);
-
 
             _allTotalGenerationValuesCollection.ToList().ForEach(x =>
             {
@@ -321,59 +362,54 @@ namespace BradyCodingChallenge.ConsoleApp
                 heatRateElement.AppendChild(heatRatesText);
             });
 
-            
+            var oldGenerationFolder = @$"{outputPath}\OldGenerationOutput";
 
-            var latestFile = $@"{secondPath}\{RandomTestFile}.xml";
-
+            var latestFile = $@"{outputPath}\{RandomTestFile}.xml";
             var currentDate = DateTime.UtcNow;
             var unixTimeInMilliseconds = new DateTimeOffset(currentDate).ToUnixTimeMilliseconds();
+
             try
             {
+                if (!Directory.Exists(outputPath))
+                    Directory.CreateDirectory(outputPath);
+                
                 if (File.Exists(latestFile))
                 {
-                    File.Move(latestFile, $@"{secondPath}\OldGenerationOutput\{RandomTestFile}-{unixTimeInMilliseconds}.xml");
-                    newDoc.Save($@"{secondPath}\{RandomTestFile}.xml");
-                }
-                else
-                {
-                    newDoc.Save($@"{secondPath}\{RandomTestFile}.xml");
-                }
+                    if (!Directory.Exists(oldGenerationFolder))
+                        Directory.CreateDirectory(oldGenerationFolder);
 
+                    var destinationFileName = $@"{outputPath}\OldGenerationOutput\{RandomTestFile}-{unixTimeInMilliseconds}.xml";
+                    File.Move(latestFile, destinationFileName);
+                }
+                
+                newDoc.Save($@"{outputPath}\{RandomTestFile}.xml");
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex);
             }
         }
 
         /// <summary>
-        /// 
+        ///     Creates a new document element, and assigns it to a parent defined through parent parameter
         /// </summary>
-        /// <param name="doc"></param>
-        /// <param name="localName"></param>
-        /// <param name="parent"></param>
-        /// <returns></returns>
+        /// <param name="doc">Document</param>
+        /// <param name="localName">Name of element</param>
+        /// <param name="parent">Parent element</param>
+        /// <returns>New element</returns>
         public static XmlElement CreateNewElementAndAppendChild(XmlDocument doc, string localName, XmlElement parent)
         {
             var newElement = doc.CreateElement(string.Empty, localName, string.Empty);
             parent.AppendChild(newElement);
             return newElement;
         }
-
-        public static void PrintCollectionMembers<T>(ICollection<T> collection)
-        {
-            foreach (var childObject in collection)
-            {
-                Console.WriteLine(childObject);
-            }
-        }
-
+        
         /// <summary>
-        ///     Gets the property value.
+        ///     Returns the value of a property if it exists
         /// </summary>
-        /// <param name="src">The source.</param>
+        /// <param name="src">Source object</param>
         /// <param name="propertyName">Name of the property.</param>
-        /// <returns></returns>
+        /// <returns>Returns the value of a property</returns>
         public static object GetPropValue(object src, string propertyName)
         {
             return src.GetType().GetProperty(propertyName)?.GetValue(src, null);

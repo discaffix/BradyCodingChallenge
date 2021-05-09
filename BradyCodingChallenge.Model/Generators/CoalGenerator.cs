@@ -3,9 +3,6 @@ using BradyCodingChallenge.Model.GenerationOutput;
 
 namespace BradyCodingChallenge.Model.Generators
 {
-    /// <summary>
-    /// 
-    /// </summary>
     public class CoalGenerator : ThermalGenerator
     {
         /// <summary>
@@ -44,7 +41,9 @@ namespace BradyCodingChallenge.Model.Generators
         public double ActualNetGeneration { get; set; }
 
 
-
+        /// <summary>
+        /// Heat rates of a Coal Engine
+        /// </summary>
         public ActualHeatRates ActualHeatRates { get; set; }
     }
 }

@@ -23,9 +23,9 @@ namespace BradyCodingChallenge.Model.Generators
         { }
         
         /// <summary>
-        /// 
+        /// Returns a string when object is called
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Name, and emission rating</returns>
         public override string ToString()
         {
             return $"Name: {Name}, Emission Rating: {EmissionsRating} ";

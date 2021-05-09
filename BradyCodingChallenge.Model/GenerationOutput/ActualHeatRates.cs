@@ -9,9 +9,9 @@ namespace BradyCodingChallenge.Model.GenerationOutput
     public class ActualHeatRates
     {
         /// <summary>
-        /// 
+        /// Constructor
         /// </summary>
-        /// <param name="name"></param>
+        /// <param name="name">Name of </param>
         /// <param name="heatRate"></param>
         public ActualHeatRates(string name, double heatRate)
         {

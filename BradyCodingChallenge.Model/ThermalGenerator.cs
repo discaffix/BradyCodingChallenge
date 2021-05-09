@@ -17,7 +17,7 @@ namespace BradyCodingChallenge.Model
         /// Constructor
         /// </summary>
         /// <param name="name">Name of the generator</param>
-        /// <param name="emissionsRating"></param>
+        /// <param name="emissionsRating">Emission rating of the generator</param>
         public ThermalGenerator(string name, double emissionsRating)
             :base(name)
         {

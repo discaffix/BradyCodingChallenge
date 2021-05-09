@@ -46,7 +46,7 @@ namespace BradyCodingChallenge.ConsoleApp
                     {
                         var dayObject = new Day();
                         
-                        // TODO: Might be a better way to do this
+                        // Set the correct objects for the day
                         foreach (XmlNode prop in day.ChildNodes)
                         {
                             switch (prop.Name)
