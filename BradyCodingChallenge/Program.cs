@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -10,14 +9,16 @@ using BradyCodingChallenge.Model;
 using BradyCodingChallenge.Model.Factors;
 using BradyCodingChallenge.Model.GenerationOutput;
 using BradyCodingChallenge.Model.Generators;
+using System.Configuration;
 
 namespace BradyCodingChallenge.ConsoleApp
 {
    
     internal class Program
     {
-        private static readonly string ProjectDirectory = Path.GetFullPath(@"..\..\..\");
 
+        private static readonly string ProjectDirectory = Path.GetFullPath(@"..\..\..\");
+        
         private const string ReferenceDataFileName = "ReferenceData";
         private const string GenerationReportFileName = "GenerationReport";
         private const string RandomTestFile = "RandomTestFile";
@@ -30,12 +31,20 @@ namespace BradyCodingChallenge.ConsoleApp
 
         public static void Main()
         {
+            var appSettings = ConfigurationManager.AppSettings;
+
+            var inputFolder = appSettings["InputFolder"];
+            var outputFolder = appSettings["OutputFolder"];
+            var referenceDataFolder = appSettings["ReferenceDataFolder"];
+            
             var reader = new XmlReader();
 
             // path locations
-            var pathToReport = @$"{ProjectDirectory}\ExtraFiles\{GenerationReportFileName}.xml";
-            var pathToReferenceData = $@"{ProjectDirectory}\ExtraFiles\{ReferenceDataFileName}.xml";
 
+            //var pathToReport = @$"{ProjectDirectory}\ExtraFiles\{GenerationReportFileName}.xml";
+            var pathToReport = @$"{inputFolder}\{GenerationReportFileName}.xml";
+            //var pathToReferenceData = $@"{ProjectDirectory}\ExtraFiles\{ReferenceDataFileName}.xml";
+            var pathToReferenceData = $@"{outputFolder}\{RandomTestFile}.xml";
             // xPath string which contains all of the generators
             const string generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
 
@@ -52,7 +61,7 @@ namespace BradyCodingChallenge.ConsoleApp
             doc.Load(pathToReport);
 
             var referenceDataDoc = new XmlDocument();
-            referenceDataDoc.Load(pathToReferenceData);
+            referenceDataDoc.Load(referenceDataFolder);
 
             var generators = doc.SelectNodes(generatorXPath);
             var factors = referenceDataDoc.SelectNodes(referenceDataXPath);
@@ -63,7 +72,10 @@ namespace BradyCodingChallenge.ConsoleApp
             ObjectToOutputObjects(GeneratorCollection, valueFactor, emissionFactor);
 
             SetDistinctAllDayCollectionWithHighestValue();
-            CreateXmlFile();
+            CreateXmlFile(outputFolder);
+
+
+
         }
 
         private static void SetDistinctAllDayCollectionWithHighestValue()
@@ -203,7 +215,7 @@ namespace BradyCodingChallenge.ConsoleApp
             return selectedEmissionFactor;
         }
 
-        public static void CreateXmlFile()
+        public static void CreateXmlFile(string secondPath)
         {
             XmlElement generatorElement;
             XmlElement nameElement;
@@ -278,7 +290,8 @@ namespace BradyCodingChallenge.ConsoleApp
             });
 
           
-            newDoc.Save(@$"{ProjectDirectory}\Output\{RandomTestFile}.xml");
+            //newDoc.Save(@$"{ProjectDirectory}\Output\{RandomTestFile}.xml");
+            newDoc.Save($@"{secondPath}\{RandomTestFile}.xml");
         }
 
         /// <summary>

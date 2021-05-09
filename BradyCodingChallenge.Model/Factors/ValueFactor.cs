@@ -2,8 +2,7 @@
 {
     public class ValueFactor : Factor
     {
-        public ValueFactor() { }
-        
+        public ValueFactor() {}
         /// <summary>
         /// 
         /// </summary>

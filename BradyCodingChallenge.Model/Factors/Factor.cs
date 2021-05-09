@@ -15,6 +15,8 @@
             High = high;
         }
 
+        public Factor() {}
+
         public double Low { get; set; }
 
         public double Medium { get; set; }

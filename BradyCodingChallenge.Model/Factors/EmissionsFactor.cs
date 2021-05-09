@@ -2,8 +2,7 @@
 {
     public class EmissionsFactor : Factor
     {
-        public EmissionsFactor(){ }
-
+        public EmissionsFactor() { }
         /// <summary>
         /// 
         /// </summary>
