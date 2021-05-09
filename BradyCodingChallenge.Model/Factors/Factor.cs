@@ -2,8 +2,6 @@
 { 
     public class Factor
     {
-        public Factor() {}
-
         /// <summary>
         /// 
         /// </summary>
@@ -21,6 +19,12 @@
 
         public double Medium { get; set; }
 
+        /// <summary>
+        /// Gets or sets the high.
+        /// </summary>
+        /// <value>
+        /// The high.
+        /// </value>
         public double High { get; set; }
     }
 }

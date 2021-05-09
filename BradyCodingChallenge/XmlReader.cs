@@ -15,10 +15,9 @@ namespace BradyCodingChallenge.ConsoleApp
         /// <summary>
         /// Sets the value of a property with a generic type
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="node">The </param>
+        /// <param name="node">Node object with all of the information about the node</param>
         /// <param name="item">Generator object</param>
-        /// <param name="propertyName">Property of the generator object</param>
+        /// <param name="propertyName">Property name of the generator object</param>
         /// <param name="valObj">Property of the generator object</param>
         public static void SetValue<T>([Optional] XmlNode node, T item, [Optional] string propertyName, [Optional] ICollection<Day> valObj) where T : class
         {
@@ -61,6 +60,8 @@ namespace BradyCodingChallenge.ConsoleApp
                                 case "Price":
                                     dayObject.Price = Parse(prop.InnerText);
                                     break;
+                                default:
+                                    throw new NotImplementedException();
                             }
                         }
 
@@ -79,10 +80,9 @@ namespace BradyCodingChallenge.ConsoleApp
         /// <summary>
         /// 
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="node"></param>
         /// <returns></returns>
-        public T FactorNodeToObject<T>(XmlNode node) where T : class
+        public virtual T FactorNodeToObject<T>(XmlNode node) where T : class
         {
             var obj = (T)Activator.CreateInstance(typeof(T));
 

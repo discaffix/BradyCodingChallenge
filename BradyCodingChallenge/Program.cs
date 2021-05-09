@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -23,22 +24,25 @@ namespace BradyCodingChallenge.ConsoleApp
 
         private static ICollection<Day> _allDaysCollection = new List<Day>();
 
-        private static readonly ICollection<TotalGenerationValue> AllTotalGenerationValuesCollection
-            = new List<TotalGenerationValue>();
-
+        private static readonly ICollection<TotalGenerationValue> AllTotalGenerationValuesCollection = new List<TotalGenerationValue>();
         private static readonly ICollection<ActualHeatRates> ActualHeatRates = new List<ActualHeatRates>();
+        private static readonly ICollection<object> GeneratorCollection = new List<object>();
 
         public static void Main()
         {
             var reader = new XmlReader();
 
-            
+            // path locations
             var pathToReport = @$"{ProjectDirectory}\ExtraFiles\{GenerationReportFileName}.xml";
             var pathToReferenceData = $@"{ProjectDirectory}\ExtraFiles\{ReferenceDataFileName}.xml";
 
+            // xPath string which contains all of the generators
             const string generatorXPath = "//WindGenerator|//GasGenerator|//CoalGenerator";
+
+            // xPath string which contains all of the factors
             const string referenceDataXPath = "//ValueFactor|//EmissionsFactor";
 
+            // factors
             var emissionFactor = new EmissionsFactor();
             var valueFactor = new ValueFactor();
 
@@ -53,8 +57,34 @@ namespace BradyCodingChallenge.ConsoleApp
             var generators = doc.SelectNodes(generatorXPath);
             var factors = referenceDataDoc.SelectNodes(referenceDataXPath);
 
-            Debug.Assert(factors != null, nameof(factors) + " != null");
+            emissionFactor = ParseValueAndEmissionsFactor(factors, emissionFactor, reader, ref valueFactor);
             
+            PopulateGeneratorCollection(generators, GeneratorCollection, reader);
+            ObjectToOutputObjects(GeneratorCollection, valueFactor, emissionFactor);
+
+            SetDistinctAllDayCollectionWithHighestValue();
+            CreateXmlFile();
+        }
+
+        private static void SetDistinctAllDayCollectionWithHighestValue()
+        {
+            _allDaysCollection = _allDaysCollection
+                .GroupBy(day => day.Date)
+                .Select(x => x.OrderByDescending(y => y.MaxEmissionGenerator.Emission).First())
+                .ToList();
+        }
+
+        /// <summary>
+        /// Sets the value of emissionsFactor and valueFactor to the data 
+        /// </summary>
+        /// <param name="factors">The nodes in the factor list</param>
+        /// <param name="emissionFactor">EmissionsFactor object</param>
+        /// <param name="reader"></param>
+        /// <param name="valueFactor"></param>
+        /// <returns></returns>
+        private static EmissionsFactor ParseValueAndEmissionsFactor(IEnumerable factors, EmissionsFactor emissionFactor,
+            XmlReader reader, ref ValueFactor valueFactor)
+        {
             foreach (XmlNode node in factors)
                 switch (node.Name)
                 {
@@ -65,20 +95,16 @@ namespace BradyCodingChallenge.ConsoleApp
                         valueFactor = reader.FactorNodeToObject<ValueFactor>(node);
                         break;
                 }
-            
-            PopulateGeneratorCollection(generators, generatorCollection, reader);
-            ObjectToOutputObjects(generatorCollection, valueFactor, emissionFactor);
 
-            // selects the day with highest emission
-            _allDaysCollection = _allDaysCollection
-                .GroupBy(day => day.Date)
-                .Select(x => x.OrderByDescending(y => y.MaxEmissionGenerator.Emission).
-                    First())
-                .ToList();
-            
-            CreateXmlFile();
+            return emissionFactor;
         }
 
+        /// <summary>
+        /// Populates the Generator Collection with the defined generator objects
+        /// </summary>
+        /// <param name="generators">List of generator nodes from XML-file</param>
+        /// <param name="generatorCollection">collection of generator objects</param>
+        /// <param name="reader"></param>
         private static void PopulateGeneratorCollection(XmlNodeList generators, ICollection<object> generatorCollection, XmlReader reader)
         {
             foreach (XmlNode node in generators)
@@ -94,10 +120,11 @@ namespace BradyCodingChallenge.ConsoleApp
                         generatorCollection.Add(reader.GeneratorNodeToList<CoalGenerator>(node));
                         break;
                     default:
-                        throw new Exception();
+                        throw new NotImplementedException();
                 }
         }
-
+        
+        // TODO: Change method name to something that makes more sense
         private static void ObjectToOutputObjects(IEnumerable<object> generatorCollection, Factor valueFactor, Factor emissionFactor)
         {
             foreach (var generator in generatorCollection)
@@ -105,8 +132,6 @@ namespace BradyCodingChallenge.ConsoleApp
                 var name = (string) GetPropValue(generator, "Name");
                 var days = (ICollection<Day>) GetPropValue(generator, "Days");
 
-                double selectedEmissionFactor = 0;
-                double selectedValueFactor = 0;
 
                 /*
                  *  Offshore Wind:  ValueFactor(Low), EmissionFactor(N/A)
@@ -114,8 +139,10 @@ namespace BradyCodingChallenge.ConsoleApp
                  *  Gas:            ValueFactor(Medium), EmissionFactor(Medium)
                  *  Coal:           ValueFactor(Medium), EmissionFactor(High)
                  */
-                selectedValueFactor = CalculateEmissionAndValueFactor(valueFactor, emissionFactor, name, selectedValueFactor, ref selectedEmissionFactor);
+                var selectedValueFactor = GetValueFactorForGenerator(valueFactor, name);
+                var selectedEmissionFactor = GetEmissionFactorForGenerator(emissionFactor, name);
 
+                    
                 var totalGenerationValue = new TotalGenerationValue();
 
                 foreach (var day in days)
@@ -149,28 +176,31 @@ namespace BradyCodingChallenge.ConsoleApp
             }
         }
 
-        private static double CalculateEmissionAndValueFactor(Factor valueFactor, Factor emissionFactor, string name,
-            double selectedValueFactor, ref double selectedEmissionFactor)
+
+        private static double GetValueFactorForGenerator(Factor valueFactor, string name)
         {
-            switch (name)
+            var selectedValueFactor = name switch
             {
-                case "Wind[Onshore]":
-                    selectedValueFactor = valueFactor.High;
-                    break;
-                case "Wind[Offshore]":
-                    selectedValueFactor = valueFactor.Low;
-                    break;
-                case "Gas[1]":
-                    selectedValueFactor = valueFactor.High;
-                    selectedEmissionFactor = emissionFactor.Medium;
-                    break;
-                case "Coal[1]":
-                    selectedValueFactor = valueFactor.Medium;
-                    selectedEmissionFactor = emissionFactor.High;
-                    break;
-            }
+                "Wind[Onshore]" => valueFactor.High,
+                "Wind[Offshore]" => valueFactor.Low,
+                "Gas[1]" => valueFactor.High,
+                "Coal[1]" => valueFactor.Medium,
+                _ => 0
+            };
 
             return selectedValueFactor;
+        }
+
+        private static double GetEmissionFactorForGenerator(Factor emissionFactor, string name)
+        {
+            var selectedEmissionFactor = name switch
+            {
+                "Gas[1]" => emissionFactor.Medium,
+                "Coal[1]" => emissionFactor.High,
+                _ => 0
+            };
+
+            return selectedEmissionFactor;
         }
 
         public static void CreateXmlFile()
@@ -265,11 +295,6 @@ namespace BradyCodingChallenge.ConsoleApp
             return newElement;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="collection"></param>
         public static void PrintCollectionMembers<T>(ICollection<T> collection)
         {
             foreach (var childObject in collection)
