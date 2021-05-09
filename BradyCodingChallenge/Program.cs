@@ -44,7 +44,7 @@ namespace BradyCodingChallenge.ConsoleApp
         }
 
         /// <summary>
-        /// Triggered whenever
+        /// Triggered whenever a new .xml file has been added to the input folder
         /// </summary>
         /// <param name="source"></param>
         /// <param name="e"></param>
